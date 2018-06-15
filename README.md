@@ -32,7 +32,7 @@ part which needs to move.
 This tool use the following assumption: if computed seektime is lower than 0.5 ms, we assume it's an **SSD**.
 
 In order to have more relevant value, the test does 128 seek-read, not only one. All of theses seek
-and randomly spread over the disk, to try to avoid as much as possible hardware cache.
+are randomly spread over the disk, to try to avoid as much as possible hardware cache.
 
 In addition, each time before doing any seek/read, we ask the kernel to purge any page cache related to this disk.
 
@@ -65,3 +65,7 @@ This server contains 12 HDD and 2 SSD:
 /dev/sdm: SSD (37 us)
 /dev/sdn: SSD (32 us)
 ```
+
+Physical disks are:
+- 12x `HGST HUS726060ALS640`
+- 2x `Samsung SSD 860 EVO 2TB`
