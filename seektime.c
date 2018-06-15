@@ -10,7 +10,15 @@
 #include <fcntl.h>
 #include <malloc.h>
 
-#define BUFFERSIZE    512
+// amount of data to read on the
+// disk after seeking, by default
+// we read 512 bytes (one sector)
+#define BUFFERSIZE  512
+
+// number of loop reading the
+// disk, we make an average after all
+// the loops
+#define DISKLOOP    128
 
 void diep(const char *str) {
     perror(str);
@@ -22,16 +30,8 @@ void dies(const char *str) {
     exit(EXIT_FAILURE);
 }
 
-// returns time in nanoseconds
+// returns time in microseconds
 uint64_t systime() {
-    /*
-    struct timespec t;
-
-    if(clock_gettime(CLOCK_MONOTONIC, &t) < 0)
-        diep("clock_gettime");
-
-    return (t.tv_sec * 1000000000) + t.tv_nsec;
-    */
     struct timeval tv;
 
     if(gettimeofday(&tv, NULL) < 0)
@@ -40,78 +40,114 @@ uint64_t systime() {
     return (tv.tv_sec * 1000000) + tv.tv_usec;
 }
 
-uint64_t seektest(int fd, off_t offset) {
+uint64_t seektest(int fd, off_t offa, off_t offb) {
     uint64_t tinit, tend;
     void *buffer;
 
-    // checking last byte and
-    // force move on the beginin of the disk
-    off_t last = lseek(fd, 0, SEEK_END);
-    lseek(fd, 0, SEEK_SET);
-
     // purge full disk from cache
-    if(posix_fadvise(fd, 0, last, POSIX_FADV_DONTNEED))
+    // this don't do anything else than
+    // requesting the kernel to flush all the
+    // pages which contains cache about this disk
+    // to ensure we hit the disk (at least on a kernel
+    // perspective)
+    if(posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED))
         diep("posix_fadvise");
 
     // allocate aligned memory
-    // required by O_DIRECT flag
+    // it's not anymore really needed to make
+    // aligned memory but it's still better for performance
+    //
+    // this was required when doing the test using
+    // O_DIRECT flag, and implementation still use it
+    // in case of change later
     if(posix_memalign(&buffer, 512, BUFFERSIZE))
         dies("posix_memalign");
 
+    // first seek
+    lseek(fd, offa, SEEK_SET);
     if(read(fd, buffer, BUFFERSIZE) < 0)
         diep("read init");
 
     // starting timing
+    // we compute the time to do the
+    // second seek only
     tinit = systime();
 
-    // moving to the end of the disk
-    // and reading one sector
-    lseek(fd, -offset, SEEK_END);
+    // second seek
+    lseek(fd, offb, SEEK_SET);
     if(read(fd, buffer, BUFFERSIZE) < 0)
         diep("read end");
 
     // computing time elapsed
     tend = systime();
-
     free(buffer);
 
     return tend - tinit;
 }
 
-int main(int argc, char *argv[]) {
-    int fd;
-
-    if(argc != 2) {
-        fprintf(stderr, "Usage: %s device\n", argv[0]);
-        exit(EXIT_FAILURE);
-    }
-
-    // if((fd = open(argv[1], O_DIRECT | O_SYNC | O_RDONLY)) < 0)
-    if((fd = open(argv[1], O_SYNC | O_RDONLY)) < 0)
-        diep(argv[1]);
-
+// this is the real implementation of the check
+// it returns an averae seektime in microseconds (us)
+// this is an approximative value but enough to determine
+// if the disk is an SSD or HDD
+uint64_t seektime(int fd, size_t disklen) {
+    // counters
     size_t checked = 0;
     uint64_t fulltime = 0;
 
-    srand(time(NULL));
+    // loop on the seek test
+    for(checked = 0; checked < DISKLOOP; checked += 1) {
+        // generate random offset within the disk
+        off_t offa = rand() % disklen;
+        off_t offb = rand() % disklen;
 
-    for(checked = 0; checked < 128; checked += 1) {
-        // let's do the test one time
-        uint64_t thistime = seektest(fd, rand() % 512 * 1024 * 1024);
+        // probing seektime between theses two offset
+        uint64_t thistime = seektest(fd, offa, offb);
         // printf("[+] seektime: %lu us\n", thistime);
 
         fulltime += thistime;
         checked += 1;
     }
 
-    uint64_t elapsed = fulltime / checked;
-    // printf("[+] average: %lu us\n", elapsed);
+    // returns the average
+    return (fulltime / checked);
+}
 
+int main(int argc, char *argv[]) {
+    int fd;
+    char *device;
+
+    // disk argument is required
+    if(argc != 2) {
+        fprintf(stderr, "Usage: %s device\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    device = argv[1];
+
+    // open disk in read-only
+    //
+    // we could open it in O_DIRECT flag
+    // but this is not as efficient then
+    // opening it with default settings
+    // and clearing the cache
+    if((fd = open(device, O_SYNC | O_RDONLY)) < 0)
+        diep(argv[1]);
+
+    // randomize
+    srand(time(NULL));
+
+    // seeking disk length
+    off_t disklen = lseek(fd, 0, SEEK_END);
+
+    // starting seektime test
+    uint64_t elapsed = seektime(fd, disklen);
+
+    // analyzing seektime
     if(elapsed > 500)
-        printf("HDD (%lu us)\n", elapsed);
+        printf("%s: HDD (%lu us)\n", device, elapsed);
 
     else if(elapsed < 500)
-        printf("SSD (%lu us)\n", elapsed);
+        printf("%s: SSD (%lu us)\n", device, elapsed);
 
     close(fd);
 
