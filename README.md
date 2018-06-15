@@ -36,6 +36,9 @@ are randomly spread over the disk, to try to avoid as much as possible hardware 
 
 In addition, each time before doing any seek/read, we ask the kernel to purge any page cache related to this disk.
 
+# Install
+Just compile the code with `make`, there are no extra dependencies than a C Compiler (tested with gcc).
+
 # Example
 
 ## Basic computer using one SSD and one HDD
