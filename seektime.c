@@ -10,9 +10,6 @@
 #include <fcntl.h>
 #include <malloc.h>
 
-// usage string for help
-#define USAGE "Usage: %s [-j] device\n"
-
 // amount of data to read on the
 // disk after seeking, by default
 // we read 512 bytes (one sector)
@@ -119,35 +116,38 @@ uint64_t seektime(int fd, size_t disklen) {
 }
 
 void output(int json, char *type, char *device, uint64_t elapsed) {
-    if (json == 1)
+    if(json == 1) {
         printf("{\"device\": \"%s\", \"type\": \"%s\", \"elapsed\": %lu}\n", device, type, elapsed);
-    else
+
+    } else {
         printf("%s: %s (%lu us)\n", device, type, elapsed);
+    }
+}
+
+void usage(char *program) {
+    printf("Usage: %s [-j] device\n\n", program);
+    printf(" -j     provide a json output\n");
+    exit(EXIT_FAILURE);
 }
 
 int main(int argc, char *argv[]) {
-    int fd;
-    int json, opt;
+    int opt, json = 0;
     char *device;
+    int fd;
 
-    json = 0;
+    while((opt = getopt(argc, argv, "j")) != -1) {
+        switch(opt) {
+            case 'j':
+                json = 1;
+                break;
 
-    while ((opt = getopt(argc, argv, "j")) != -1) {
-        switch (opt) {
-        case 'j':
-            json = 1;
-            break;
-        default: /* '?' */
-            fprintf(stderr, USAGE,
-                    argv[0]);
-            exit(EXIT_FAILURE);
+            default:
+                usage(argv[0]);
         }
     }
 
-    if (optind >= argc) {
-        fprintf(stderr, USAGE, argv[0]);
-        exit(EXIT_FAILURE);
-    }
+    if(optind >= argc)
+        usage(argv[0]);
 
     device = argv[optind];
 
@@ -170,12 +170,7 @@ int main(int argc, char *argv[]) {
     uint64_t elapsed = seektime(fd, disklen);
 
     // analyzing seektime
-    char *type = NULL;
-
-    if(elapsed >= 500)
-        type = TYPE_HDD;
-    else
-        type = TYPE_SDD;
+    char *type = (elapsed >= 500) ? TYPE_HDD : TYPE_SDD;
 
     output(json, type, device, elapsed);
     close(fd);
