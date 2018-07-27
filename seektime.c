@@ -21,7 +21,7 @@
 #define DISKLOOP    128
 
 #define TYPE_HDD "HDD"
-#define TYPE_SDD "SDD"
+#define TYPE_SSD "SSD"
 
 void diep(const char *str) {
     perror(str);
@@ -170,7 +170,7 @@ int main(int argc, char *argv[]) {
     uint64_t elapsed = seektime(fd, disklen);
 
     // analyzing seektime
-    char *type = (elapsed >= 500) ? TYPE_HDD : TYPE_SDD;
+    char *type = (elapsed >= 500) ? TYPE_HDD : TYPE_SSD;
 
     output(json, type, device, elapsed);
     close(fd);
