@@ -72,3 +72,6 @@ This server contains 12 HDD and 2 SSD:
 Physical disks are:
 - 12x `HGST HUS726060ALS640`
 - 2x `Samsung SSD 860 EVO 2TB`
+
+# Repository Owner
+- [Maxime Daniel](https://github.com/maxux), Telegram: [@maxux](http://t.me/maxux)
