@@ -1,3 +1,5 @@
+*This repository exists simply to create a portable, static linked version of seektime and distribute a binary. For all other concerns, please look upstream.*
+
 # Seektime
 This tool try to determine if a target device is a HDD or SSD disk.
 

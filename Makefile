@@ -7,7 +7,7 @@ OBJ = $(SRC:.c=.o)
 # avoid lot of fake report caused by
 # possible optimization
 CFLAGS += -g -std=gnu99 -O0 -W -Wall
-LDFLAGS +=
+LDFLAGS += -static
 
 all: $(EXEC)
 
